@@ -553,6 +553,16 @@ ovsdb_idl_set_shuffle_remotes(struct ovsdb_idl *idl, bool shuffle)
     idl->shuffle_remotes = shuffle;
 }
 
+/* Reset min_index to 0. This prevents a situation where the client
+ * thinks all databases have stale data, when they actually have all
+ * been destroyed and rebuilt from scratch.
+ */
+void
+ovsdb_idl_reset_min_index(struct ovsdb_idl *idl)
+{
+    idl->min_index = 0;
+}
+
 static void
 ovsdb_idl_db_destroy(struct ovsdb_idl_db *db)
 {
@@ -4449,7 +4459,8 @@ ovsdb_idl_txn_write__(const struct ovsdb_idl_row *row_,
      * transaction only does writes of existing values, without making any real
      * changes, we will drop the whole transaction later in
      * ovsdb_idl_txn_commit().) */
-    if (write_only && ovsdb_datum_equals(ovsdb_idl_read(row, column),
+    if (datum->keys && datum->values &&
+        write_only && ovsdb_datum_equals(ovsdb_idl_read(row, column),
                                          datum, &column->type)) {
         goto discard_datum;
     }

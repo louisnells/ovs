@@ -36,6 +36,7 @@
 #include "ovsdb/log.h"
 #include "raft-rpc.h"
 #include "random.h"
+#include "simap.h"
 #include "socket-util.h"
 #include "stream.h"
 #include "timeval.h"
@@ -938,6 +939,7 @@ raft_add_conn(struct raft *raft, struct jsonrpc_session *js,
                                               &conn->sid);
     conn->incoming = incoming;
     conn->js_seqno = jsonrpc_session_get_seqno(conn->js);
+    jsonrpc_session_set_probe_interval(js, 0);
 }
 
 /* Starts the local server in an existing Raft cluster, using the local copy of
@@ -1011,6 +1013,21 @@ const struct uuid *
 raft_get_sid(const struct raft *raft)
 {
     return &raft->sid;
+}
+
+/* Adds memory consumption info to 'usage' for later use by memory_report(). */
+void
+raft_get_memory_usage(const struct raft *raft, struct simap *usage)
+{
+    struct raft_conn *conn;
+    int cnt = 0;
+
+    LIST_FOR_EACH (conn, list_node, &raft->conns) {
+        simap_increase(usage, "raft-backlog",
+                       jsonrpc_session_get_backlog(conn->js));
+        cnt++;
+    }
+    simap_increase(usage, "raft-connections", cnt);
 }
 
 /* Returns true if 'raft' has completed joining its cluster, has not left or
@@ -1404,8 +1421,20 @@ raft_conn_run(struct raft *raft, struct raft_conn *conn)
     jsonrpc_session_run(conn->js);
 
     unsigned int new_seqno = jsonrpc_session_get_seqno(conn->js);
-    bool just_connected = (new_seqno != conn->js_seqno
+    bool reconnected = new_seqno != conn->js_seqno;
+    bool just_connected = (reconnected
                            && jsonrpc_session_is_connected(conn->js));
+
+    if (reconnected) {
+        /* Clear 'last_install_snapshot_request' since it might not reach the
+         * destination or server was restarted. */
+        struct raft_server *server = raft_find_server(raft, &conn->sid);
+        if (server) {
+            free(server->last_install_snapshot_request);
+            server->last_install_snapshot_request = NULL;
+        }
+    }
+
     conn->js_seqno = new_seqno;
     if (just_connected) {
         if (raft->joining) {
@@ -3279,6 +3308,31 @@ raft_send_install_snapshot_request(struct raft *raft,
             .election_timer = raft->election_timer, /* use latest value */
         }
     };
+
+    if (s->last_install_snapshot_request) {
+        struct raft_install_snapshot_request *old, *new;
+
+        old = s->last_install_snapshot_request;
+        new = &rpc.install_snapshot_request;
+        if (   old->term           == new->term
+            && old->last_index     == new->last_index
+            && old->last_term      == new->last_term
+            && old->last_servers   == new->last_servers
+            && old->data           == new->data
+            && old->election_timer == new->election_timer
+            && uuid_equals(&old->last_eid, &new->last_eid)) {
+            static struct vlog_rate_limit rl = VLOG_RATE_LIMIT_INIT(5, 5);
+
+            VLOG_WARN_RL(&rl, "not sending exact same install_snapshot_request"
+                              " to server %s again", s->nickname);
+            return;
+        }
+    }
+    free(s->last_install_snapshot_request);
+    CONST_CAST(struct raft_server *, s)->last_install_snapshot_request
+        = xmemdup(&rpc.install_snapshot_request,
+                  sizeof rpc.install_snapshot_request);
+
     raft_send(raft, &rpc);
 }
 
@@ -4163,9 +4217,7 @@ raft_handle_execute_command_request__(
     cmd->sid = rq->common.sid;
 
     enum raft_command_status status = cmd->status;
-    if (status != RAFT_CMD_INCOMPLETE) {
-        raft_command_unref(cmd);
-    }
+    raft_command_unref(cmd);
     return status;
 }
 

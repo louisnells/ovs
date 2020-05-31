@@ -962,14 +962,26 @@ static struct dst_entry *geneve_get_v6_dst(struct sk_buff *skb,
 			return dst;
 	}
 
-#ifdef HAVE_IPV6_DST_LOOKUP_NET
-	if (ipv6_stub->ipv6_dst_lookup(geneve->net, gs6->sock->sk, &dst, fl6)) {
+#if defined(HAVE_IPV6_STUB_WITH_DST_ENTRY) && defined(HAVE_IPV6_DST_LOOKUP_FLOW)
+#ifdef HAVE_IPV6_DST_LOOKUP_FLOW_NET
+	dst = ipv6_stub->ipv6_dst_lookup_flow(geneve->net, gs6->sock->sk, fl6,
+					      NULL);
 #else
-#ifdef HAVE_IPV6_STUB
+	dst = ipv6_stub->ipv6_dst_lookup_flow(gs6->sock->sk, fl6,
+					      NULL);
+#endif
+	if (IS_ERR(dst)) {
+#elif defined(HAVE_IPV6_DST_LOOKUP_FLOW_NET)
+	if (ipv6_stub->ipv6_dst_lookup_flow(geneve->net, gs6->sock->sk, &dst,
+                                            fl6)) {
+#elif defined(HAVE_IPV6_DST_LOOKUP_FLOW)
+	if (ipv6_stub->ipv6_dst_lookup_flow(gs6->sock->sk, &dst, fl6)) {
+#elif defined(HAVE_IPV6_DST_LOOKUP_NET)
+	if (ipv6_stub->ipv6_dst_lookup(geneve->net, gs6->sock->sk, &dst, fl6)) {
+#elif defined(HAVE_IPV6_STUB)
 	if (ipv6_stub->ipv6_dst_lookup(gs6->sock->sk, &dst, fl6)) {
 #else
 	if (ip6_dst_lookup(gs6->sock->sk, &dst, fl6)) {
-#endif
 #endif
 		netdev_dbg(dev, "no route to %pI6\n", &fl6->daddr);
 		return ERR_PTR(-ENETUNREACH);
