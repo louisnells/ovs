@@ -359,6 +359,7 @@ Shih-Hao Li                        shihli@vmware.com
 Shu Shen                           shu.shen@radisys.com
 Simon Horman                       horms@verge.net.au
 Simon Horman                       simon.horman@netronome.com
+Sivaprasad Tummala                 sivaprasad.tummala@intel.com
 Sorin Vinturis                     svinturis@cloudbasesolutions.com
 Sriharsha Basavapatna              sriharsha.basavapatna@broadcom.com
 Steffen Gebert                     steffen.gebert@informatik.uni-wuerzburg.de
@@ -428,6 +429,7 @@ Zhenyu Gao                         sysugaozhenyu@gmail.com
 ZhiPeng Lu                         luzhipeng@uniudc.com
 Zhou Yangchao                      1028519445@qq.com
 aginwala                           amginwal@gmail.com
+lzhecheng                          lzhecheng@vmware.com
 parameswaran krishnamurthy         parkrish@gmail.com
 solomon                            liwei.solomon@gmail.com
 wenxu                              wenxu@ucloud.cn
