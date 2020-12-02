@@ -3,8 +3,19 @@ Post-v2.14.0
    - OVSDB:
      * New unixctl command 'ovsdb-server/get-db-storage-status' to show the
        status of the storage that's backing a database.
+     * New unixctl command 'ovsdb-server/memory-trim-on-compaction on|off'.
+       If turned on, ovsdb-server will try to reclaim all the unused memory
+       after every DB compaction back to OS.  Disabled by default.
+     * Maximum backlog on RAFT connections limited to 500 messages or 4GB.
+       Once threshold reached, connection is dropped (and re-established).
+       Use the 'cluster/set-backlog-threshold' command to change limits.
    - DPDK:
      * Removed support for vhost-user dequeue zero-copy.
+   - Userspace datapath:
+     * Add the 'pmd' option to "ovs-appctl dpctl/dump-flows", which
+       restricts a flow dump to a single PMD thread if set.
+     * New 'options:dpdk-vf-mac' field for DPDK interface of VF ports,
+       that allows configuring the MAC address of a VF representor.
    - The environment variable OVS_UNBOUND_CONF, if set, is now used
      as the DNS resolver's (unbound) configuration file.
    - Linux datapath:
@@ -14,6 +25,8 @@ Post-v2.14.0
        "secondary", respectively, for OpenFlow connection roles.
      * The term "slave" has been replaced by "member", for bonds, LACP, and
        OpenFlow bundle actions.
+   - Support for GitHub Actions based continuous integration builds has been
+     added.
 
 
 v2.14.0 - 17 Aug 2020

@@ -529,11 +529,7 @@ static int queue_userspace_packet(struct datapath *dp, struct sk_buff *skb,
 		hash |= OVS_PACKET_HASH_SW_BIT;
 #endif
 
-#ifdef HAVE_L4_RXHASH
-	if (skb->l4_rxhash)
-#else
 	if (skb->l4_hash)
-#endif
 		hash |= OVS_PACKET_HASH_L4_BIT;
 
 	if (nla_put(user_skb, OVS_PACKET_ATTR_HASH, sizeof (u64), &hash)) {
@@ -2576,8 +2572,10 @@ static void __net_exit ovs_exit_net(struct net *dnet)
 
 	ovs_netns_frags6_exit(dnet);
 	ovs_netns_frags_exit(dnet);
-	ovs_ct_exit(dnet);
 	ovs_lock();
+
+	ovs_ct_exit(dnet);
+
 	list_for_each_entry_safe(dp, dp_next, &ovs_net->dps, list_node)
 		__dp_destroy(dp);
 
